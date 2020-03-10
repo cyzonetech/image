@@ -68,34 +68,18 @@ abstract class AbstractDecoder
         if (function_exists('curl_init')) {
             return $this->initFromUrlWithCurl($url);
         }
-        
+
         $options = [
             'http' => [
                 'method'=>"GET",
                 'header'=>"Accept-language: en\r\n".
-                "User-Agent: Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.2 (KHTML, like Gecko) Chrome/22.0.1216.0 Safari/537.2\r\n"
+                    "User-Agent: Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.2 (KHTML, like Gecko) Chrome/22.0.1216.0 Safari/537.2\r\n"
             ]
         ];
-        
-        $context  = stream_context_create($options);
-        
-        $pathInfo = parse_url($url);
-        $refer = $pathInfo['scheme'] . '://' . $pathInfo['host'] . '/';
 
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_REFERER, $refer); //伪造来源地址
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);//返回变量内容还是直接输出字符串,0输出,1返回内容
-        curl_setopt($ch, CURLOPT_BINARYTRANSFER, 1);//在启用CURLOPT_RETURNTRANSFER的时候，返回原生的（Raw）
-        curl_setopt($ch, CURLOPT_HEADER, 0); //是否输出HEADER头信息 0否1是
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout = 10); //超时时间
-        // https请求 不验证证书和hosts
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        $data = curl_exec($ch);
-        $info = curl_getinfo($ch);
-        curl_close($ch);
-        
-        if ($info['http_code'] === 200 && $data) {
+        $context  = stream_context_create($options);
+
+        if ($data = @file_get_contents($url, false, $context)) {
             return $this->initFromBinary($data);
         }
 
@@ -112,11 +96,19 @@ abstract class AbstractDecoder
      */
     public function initFromUrlWithCurl($url)
     {
+        $pathInfo = parse_url($url);
+        $refer = $pathInfo['scheme'] . '://' . $pathInfo['host'] . '/';
+
         $ch = curl_init();
         $options =  [
             CURLOPT_URL => $url,
+            CURLOPT_REFERER => $refer,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER => false,
             CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_FOLLOWLOCATION => 2,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
             CURLOPT_USERAGENT => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'
         ];
         curl_setopt_array($ch, $options);
